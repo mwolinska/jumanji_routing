@@ -7,9 +7,16 @@ from typing import List, SupportsFloat as Numeric
 
 
 class LSystemBoardGen:
-    def __init__(self, rows: int, cols: int, num_agents:int) -> None:
-        self.rows = rows
-        self.cols = cols
+    def __init__(self, rows: int, cols: int = None, num_agents:int = None) -> None:
+        if cols is None:
+            self.rows = rows
+            self.cols = rows
+        if len(rows) == 2:
+            self.rows = rows[0]
+            self.cols = rows[1]
+        else:
+            self.rows = rows
+            self.cols = cols
 
         self.agent_count = num_agents
         self.board = self.initialise_starting_board(self.rows, self.cols, self.agent_count)
