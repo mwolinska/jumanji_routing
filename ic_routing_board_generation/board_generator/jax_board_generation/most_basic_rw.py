@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from functools import partial
-
+import timeit
+import time
 from chex import PRNGKey, Array
 
 # import random
@@ -75,15 +76,19 @@ class JaxRandomWalk:
         is_same_col = unflatten_available[1] == unflatten_current[1]
         row_col_mask = is_same_row | is_same_col
         mask = mask & row_col_mask
-        # jax.debug.print("what I want: {x}", x=jnp.where(mask == 0, -1, cells_to_check))
+        #jax.debug.print("what I want: {x}", x=jnp.where(mask == 0, -1, cells_to_check))
         return jnp.where(mask == 0, -1, cells_to_check)
 
     def available_cells(self, layout: Array, cell: int):
         # TODO: make sure this outputting -1 for the end of the array
         adjacent_cells = self.adjacent_cells(cell)
-        # jax.debug.print("adjacent cells are: {adj}", adj=adjacent_cells)
+        #jax.debug.print("adjacent cells are: {adj}", adj=adjacent_cells)
         #print("internal adjacent cells are: ", adjacent_cells)
         _, available_cells_mask = jax.lax.scan(self.is_cell_free, layout, adjacent_cells)
+        # Also want to check if the cell is touching itself more than once
+        _, touching_cells_mask = jax.lax.scan(self.is_cell_touching_self, layout, adjacent_cells)
+        # Combine masks
+        available_cells_mask = available_cells_mask & touching_cells_mask
         # Want the boolean masking to leave available cells as they are and
         # change the unavailable cells to -1
         available_cells = jnp.where(available_cells_mask == 0, -1, adjacent_cells)
@@ -95,15 +100,27 @@ class JaxRandomWalk:
     def is_cell_free(self, layout: Array, cell: int):
         coordinate = jnp.divmod(cell, self._rows)
         return layout, jax.lax.select(cell == -1, False, layout[coordinate[0], coordinate[1]] == 0)
+    
+    def is_cell_touching_self(self, layout: Array, cell: int):
+        """
+        Check if the cell is touching any of the wire's own cells more than once.
+        This means looking for surrounding cells of value 3 * wire_id + POSITION or
+        3 * wire_id + PATH.
+        """
+        coordinate = jnp.divmod(cell, self._rows)
+        # get the wire id from the layout
+        # Taking one away so head tail and path are all 0, 1, 2
+        wire_id = (layout[coordinate[0], coordinate[1]] -1 ) // 3
+        return layout, jax.lax.select(cell == -1, False, (layout[coordinate[0], coordinate[1]] == 3 * wire_id + POSITION) | (layout[coordinate[0], coordinate[1]] == 3 * wire_id + PATH))
 
     def one_step(self, random_walk_tuple: Tuple[PRNGKey, Array, Wire]):
         # jax.debug.print("we do be stepping")
         key, layout, wire, wire_id = random_walk_tuple
         key, subkey = jax.random.split(key)
         cell = wire.path[wire.insertion_index - 1][0] * self._cols + wire.path[wire.insertion_index - 1][1]
-        # jax.debug.print("cell is: {cell}", cell=cell)
+        #jax.debug.print("cell is: {cell}", cell=cell)
         available_cells = self.available_cells(layout=layout, cell=cell)
-        # jax.debug.print("available cells are: {available_cells}", available_cells=available_cells)
+        #jax.debug.print("available cells are: {available_cells}", available_cells=available_cells)
         step_coordinate_flat = jax.random.choice(
             key=subkey,
             a=available_cells,
@@ -213,14 +230,34 @@ class JaxRandomWalk:
             return jnp.zeros((self._rows, self._cols))
 
         return jax.lax.cond(success, None, true_fun, None, false_fun)
+    
+    def generate_until_non_empty(self, key):
+        def cond_fun(state):
+            _, board, success, _ = state
+            return jnp.logical_and(jnp.logical_not(success), jnp.sum(board) == 0)
 
+        def body_fun(state):
+            key, _, _, _ = state
+            new_key, sub_key = jax.random.split(key)
+            new_board = self.generate(sub_key)
+            new_success = jnp.sum(new_board) > 0
+            return new_key, new_board, new_success, sub_key
+
+        init_key, init_sub_key = jax.random.split(key)
+        init_board = jnp.zeros((self._rows, self._cols))
+        init_state = (init_key, init_board, False, init_sub_key)
+
+        _, final_board, _, _ = jax.lax.while_loop(cond_fun, body_fun, init_state)
+        return final_board
+    
     def generate_starts_ends(self, key):
         """
         Call generate, take the first and last cells of each wire
 
         Return two arrays of dimension 2 x num_agents
         """
-        board = self.generate(key)
+        board = self.generate_until_non_empty(key)
+        #jax.debug.print("{x}", x=board)
 
         def find_positions(wire_id):
             wire_positions = board == 3 * wire_id + POSITION
@@ -249,19 +286,27 @@ class JaxRandomWalk:
 
 
 
-
-# TODO: Some of the wires appear to be improperly formed, could just be an
-# issue on boundaries
-
-
 if __name__ == "__main__":
-    board_generator = JaxRandomWalk(10, 10, 3)
-    key = jax.random.PRNGKey(101)
+    board_generator = JaxRandomWalk(10, 10, 5)
+    key = jax.random.PRNGKey(54)
     # jit generate
-    board_generator_jit = jax.jit(board_generator.generate)
-    print(board_generator_jit(key))
+    #board_generator_jit = jax.jit(board_generator.generate)
+    #print(board_generator_jit(key))
     #print(board_generator.generate(key))
+    board_generator_starts_ends = board_generator.generate_starts_ends
+    print(board_generator_starts_ends(key))
 
     # jit generate_starts_ends
     board_generator_starts_ends_jit = jax.jit(board_generator.generate_starts_ends)
     print(board_generator_starts_ends_jit(key))
+    board_generate_until_non_empty_jit = jax.jit(board_generator.generate_until_non_empty)
+    # Time how quick the generation is and vary the key
+    # start the timer
+    # start = time.time()
+
+    # for i in range(10000):
+    #     key = jax.random.PRNGKey(i)
+    #     _, _ = board_generator_starts_ends_jit(key)
+    # # stop the timer
+    # end = time.time()
+    # print("Time taken: ", end - start)
