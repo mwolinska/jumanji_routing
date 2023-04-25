@@ -138,7 +138,7 @@ def _make_raw_env(cfg: DictConfig, ic_generator: Optional[BoardName] = None) -> 
 
 def setup_env(cfg: DictConfig) -> Environment:
     env = _make_raw_env(cfg)
-    env = VmapWrapper(AutoResetWrapper(env))
+    env = VmapAutoResetWrapper(env)
     return env
 
 

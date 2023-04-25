@@ -15,6 +15,7 @@
 import functools
 import logging
 from typing import Dict, Tuple
+import os
 
 import hydra
 import jax
@@ -42,6 +43,9 @@ def train(cfg: omegaconf.DictConfig, log_compiles: bool = False) -> None:
     logging.info(omegaconf.OmegaConf.to_yaml(cfg))
     logging.getLogger().setLevel(logging.INFO)
     logging.info({"devices": jax.local_devices()})
+
+    # TODO: this is an attempted fix for GPU issues. May need to be removed
+    os.environ["XLA_FLAGS"] = "--xla_gpu_enable_triton_gemm=false"
 
     key, init_key = jax.random.split(jax.random.PRNGKey(cfg.seed))
     logger = setup_logger(cfg)
