@@ -170,7 +170,8 @@ class RandomSeedBoard(AbstractBoard):
         converged = False
         iteration_num = 0
         carry = (board_layout, key, iteration_num, converged)
-        board_layout, key, iteration_num, converged = jax.lax.while_loop(ext_iterations_cond, ext_iteration_body, carry)
+        # board_layout, key, iteration_num, converged = jax.lax.while_loop(ext_iterations_cond, ext_iteration_body, carry)
+        board_layout, _, _, _ = ext_iteration_body(carry)
         # END WHILE LOOP
 
         return board_layout

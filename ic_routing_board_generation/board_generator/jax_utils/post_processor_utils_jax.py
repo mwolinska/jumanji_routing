@@ -1,6 +1,6 @@
 import random
+
 from typing import List, Tuple
-import numpy as np
 from copy import deepcopy
 from ic_routing_board_generation.board_generator.numpy_board_generation.bfs_board import BFSBoard
 from ic_routing_board_generation.board_generator.numpy_board_generation.board_generator_random_walk_rb import RandomWalkBoard
@@ -83,13 +83,13 @@ def extend_wires_jax(board_layout: Array, key: PRNGKey, randomness: float = 0.0,
     num_wires = jnp.max(board_layout) // 3
     num_extendables = jax.lax.select(two_sided, 2 * num_wires, num_wires)
     prev_layout = board_layout.at[0, 0].add(1)  # Make prev_layout != board_layout
-    # Continue as long as the algorithm is still changing the board
-    step_num = 0
-    def while_cond(carry):
+    max_iterations = 2 * rows
+
+    def fori_cond_func(i, carry):
         prev_layout, board_layout, _, step_num = carry
         return ~jnp.array_equal(prev_layout, board_layout) & (step_num < extension_steps)
 
-    def while_body(carry):
+    def fori_body_func(i, carry):
         prev_layout, board_layout, key, step_num = carry
         step_num = step_num + 1
         print("Extension Step ", step_num)
@@ -232,9 +232,9 @@ def extend_wires_jax(board_layout: Array, key: PRNGKey, randomness: float = 0.0,
         carry = (prev_layout, board_layout, key, step_num)
         return carry
 
-    # For jax.lax.while_loop
-    carry = (prev_layout, board_layout, key, step_num)
-    _, board_layout, _, _ = jax.lax.while_loop(while_cond, while_body, carry)
+    # For jax.lax.fori_loop
+    carry = (prev_layout, board_layout, key, 0)
+    _, board_layout, _, _ = jax.lax.fori_loop(0, max_iterations, fori_body_func, carry)
     return board_layout
 
 
@@ -409,7 +409,7 @@ def cell_encoding_to_wire_num_jax(cell_encoding: Array) -> Array:
     """
     #output = jax.lax.select(cell_encoding == 0, -1, int((cell_encoding - 1) // 3))
     output = jax.lax.select(cell_encoding == 0, -1, (cell_encoding - 1) // 3)
-    return jax.lax.convert_element_type(output, np.int32)
+    return jax.lax.convert_element_type(output, jnp.int32)
 
 
 #@jax.jit
@@ -452,46 +452,46 @@ def training_board_from_solved_board_jax(board_layout: Array) -> Array:
 
 
 #TODO JAXIFY
-def count_detours_jax(board_layout: Array, count_current_wire: bool = False) -> jnp.array:
-    """ Returns the number of wires that have to detour around a head or target cell.
+# def count_detours_jax(board_layout: Array, count_current_wire: bool = False) -> jnp.array:
+#     """ Returns the number of wires that have to detour around a head or target cell.
 
-        Args:
-            board_layout (Array): 2D layout of the board with wires encoded
-            count_current_wire (bool): Should we count wires that wrap around their own heads/targets?
-                                            (default = False)
+#         Args:
+#             board_layout (Array): 2D layout of the board with wires encoded
+#             count_current_wire (bool): Should we count wires that wrap around their own heads/targets?
+#                                             (default = False)
 
-        Returns:
-            (jnp.array(int)) : The number of wires that have to detour around a head or target cell.
-    """
-    rows, cols = board_layout.shape
-    num_detours = 0
-    for x in range(rows):
-        for y in range(cols):
-            cell_type = position_to_cell_type(Position(x, y), board_layout)
-            if (cell_type != STARTING_POSITION) and (cell_type != TARGET):
-                continue
-            current_wire = position_to_wire_num(Position(x, y), board_layout)
-            #
-            above = board_layout[:x, y]
-            above = [cell_label_to_wire_num(cell_label) for cell_label in above if cell_label != 0]
-            if not count_current_wire:
-                above = [wire_num for wire_num in above if wire_num != current_wire]
-            below = board_layout[x + 1:, y]
-            below = [cell_label_to_wire_num(cell_label) for cell_label in below if cell_label != 0]
-            if not count_current_wire:
-                below = [wire_num for wire_num in below if wire_num != current_wire]
-            common = (set(above) & set(below))
-            num_detours += len(common)
-            #
-            left = board_layout[x, :y].tolist()
-            left = [cell_label_to_wire_num(cell_label) for cell_label in left if cell_label != 0]
-            if not count_current_wire:
-                left = [wire_num for wire_num in left if wire_num != current_wire]
-            right = board_layout[x, y+1:].tolist()
-            right = [cell_label_to_wire_num(cell) for cell in right if cell != 0]
-            if not count_current_wire:
-                right = [wire_num for wire_num in right if wire_num != current_wire]
-            common = (set(right) & set(left))
-            num_detours += len(common)
-    return num_detours
+#         Returns:
+#             (jnp.array(int)) : The number of wires that have to detour around a head or target cell.
+#     """
+#     rows, cols = board_layout.shape
+#     num_detours = 0
+#     for x in range(rows):
+#         for y in range(cols):
+#             cell_type = position_to_cell_type(Position(x, y), board_layout)
+#             if (cell_type != STARTING_POSITION) and (cell_type != TARGET):
+#                 continue
+#             current_wire = position_to_wire_num(Position(x, y), board_layout)
+#             #
+#             above = board_layout[:x, y]
+#             above = [cell_label_to_wire_num(cell_label) for cell_label in above if cell_label != 0]
+#             if not count_current_wire:
+#                 above = [wire_num for wire_num in above if wire_num != current_wire]
+#             below = board_layout[x + 1:, y]
+#             below = [cell_label_to_wire_num(cell_label) for cell_label in below if cell_label != 0]
+#             if not count_current_wire:
+#                 below = [wire_num for wire_num in below if wire_num != current_wire]
+#             common = (set(above) & set(below))
+#             num_detours += len(common)
+#             #
+#             left = board_layout[x, :y].tolist()
+#             left = [cell_label_to_wire_num(cell_label) for cell_label in left if cell_label != 0]
+#             if not count_current_wire:
+#                 left = [wire_num for wire_num in left if wire_num != current_wire]
+#             right = board_layout[x, y+1:].tolist()
+#             right = [cell_label_to_wire_num(cell) for cell in right if cell != 0]
+#             if not count_current_wire:
+#                 right = [wire_num for wire_num in right if wire_num != current_wire]
+#             common = (set(right) & set(left))
+#             num_detours += len(common)
+#     return num_detours
 
