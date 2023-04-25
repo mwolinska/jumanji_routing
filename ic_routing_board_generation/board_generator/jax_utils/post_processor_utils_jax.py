@@ -124,7 +124,7 @@ def extend_wires_jax(board_layout: Array, key: PRNGKey, randomness: float = 0.0,
 
 
 
-        # """  THIS WORKS BUT DOESN'T IMPROVE COMPILE TIME MUCH COMPARED TO NESTED FOR LOOPS
+
         def row_func(row, carry):
             board_layout, key = carry
             def col_func(col, carry):
@@ -442,6 +442,10 @@ def training_board_from_solved_board_jax(board_layout: Array) -> Array:
         Returns:
             (Array): 2D layout of the encoded training board
     """
+    board_path_bool = ((board_layout % 3) == PATH)
+    board_layout_paths_removed = board_layout * ~board_path_bool
+    return board_layout_paths_removed
+    """  OLD CODE THAT WAS REPLACED BY MORE EFFICIENT CODE ABOVE
     rows, cols = board_layout.shape
     for row in range(rows):
         for col in range(cols):
@@ -449,6 +453,8 @@ def training_board_from_solved_board_jax(board_layout: Array) -> Array:
             new_encoding = jax.lax.select((old_encoding % 3) == PATH, 0, old_encoding)
             board_layout = board_layout.at[row, col].set(new_encoding)
     return board_layout
+    """
+
 
 
 #TODO JAXIFY
