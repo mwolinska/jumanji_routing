@@ -64,6 +64,7 @@ from jumanji.training.networks.actor_critic import ActorCriticNetworks
 from jumanji.training.networks.protocols import RandomPolicy
 from jumanji.training.types import ActingState, TrainingState
 from jumanji.wrappers import MultiToSingleWrapper, VmapAutoResetWrapper
+from jumanji.wrappers import VmapWrapper, AutoResetWrapper
 
 
 def setup_logger(cfg: DictConfig) -> Logger:
@@ -137,7 +138,7 @@ def _make_raw_env(cfg: DictConfig, ic_generator: Optional[BoardName] = None) -> 
 
 def setup_env(cfg: DictConfig) -> Environment:
     env = _make_raw_env(cfg)
-    env = VmapAutoResetWrapper(env)
+    env = VmapWrapper(AutoResetWrapper(env))
     return env
 
 

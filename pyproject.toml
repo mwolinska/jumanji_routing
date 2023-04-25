@@ -46,7 +46,7 @@ ignore_missing_imports = true
 
 [tool.poetry]
 name = "jumanji-routing"
-version = "0.2.2"
+version = "0.4.1"
 description = ""
 authors = ["Marta <marta.wolinska16@imperial.ac.uk>"]
 readme = "README.md"
