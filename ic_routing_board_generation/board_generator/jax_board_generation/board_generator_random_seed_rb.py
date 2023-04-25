@@ -127,8 +127,8 @@ class RandomSeedBoard(AbstractBoard):
         key, seedkey = jax.random.split(key)
 
         board_layout = self.return_seeded_board(seedkey)
-        print("SEEDED BOARD")
-        print(board_layout)
+        #print("SEEDED BOARD")
+        #print(board_layout)
 
 
 
@@ -142,10 +142,10 @@ class RandomSeedBoard(AbstractBoard):
             board_layout, key, iteration_num, converged = carry
             iteration_num = iteration_num + 1
 
-            print("Extension iteration ", iteration_num + 1)
+            #print("Extension iteration ", iteration_num + 1)
             key, extkey, optkey = jax.random.split(key, 3)
             board_layout = extend_wires_jax(board_layout, extkey, randomness, two_sided, extension_steps)
-            print(board_layout)
+            #print(board_layout)
             optkeys = jax.random.split(optkey, self._wires_on_board)
             board_layout_save = deepcopy(board_layout)
 
@@ -158,8 +158,8 @@ class RandomSeedBoard(AbstractBoard):
             carry = (board_layout_save, optkeys)
             board_layout, _ = jax.lax.fori_loop(0, self._wires_on_board, optimise_loop_func, carry)
 
-            print("Optimization")
-            print(board_layout)
+            #print("Optimization")
+            #print(board_layout)
             #print("Detours = ", count_detours(np_array(board_layout)))
 
 
