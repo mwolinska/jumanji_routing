@@ -112,18 +112,18 @@ class RandomSeedBoard(AbstractBoard):
             optkeys = jax.random.split(optkey, self._wires_on_board)
             #board_layout_save = deepcopy(board_layout)
 
-            # Optimise each wire individually
-            def optimise_wire_loop_func(wire_num, carry):
-                board_layout, keys = carry
-                board_layout = optimise_wire(keys[wire_num], board_layout, wire_num)
-                carry = (board_layout, keys)
-                return carry
-            carry = (board_layout, optkeys)
-            board_layout, _ = jax.lax.fori_loop(0, self._wires_on_board, optimise_wire_loop_func, carry)
-
-            # print("Optimization")
-            # print(board_layout)
-            #print("Detours = ", count_detours(np_array(board_layout)))
+            """ TEMPORARILY DISABLE OPTIMISATION
+            ## Optimise each wire individually
+            #def optimise_wire_loop_func(wire_num, carry):
+            #    board_layout, keys = carry
+            #    board_layout = optimise_wire(keys[wire_num], board_layout, wire_num)
+            #    carry = (board_layout, keys)
+            #    return carry
+            #carry = (board_layout, optkeys)
+            #board_layout, _ = jax.lax.fori_loop(0, self._wires_on_board, optimise_wire_loop_func, carry)
+            ## print("Optimization")
+            ## print(board_layout)
+            """
 
             #   WHILE LOOP
             carry = (board_layout, key, iteration_num, converged)
