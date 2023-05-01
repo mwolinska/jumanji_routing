@@ -29,9 +29,9 @@ class BoardName(str, Enum):
     BFS_FIFO = "bfs_fifo"
     BFS_SHORTEST = "bfs_short"
     BFS_LONGEST = "bfs_long"
-    # LSYSTEMS = "lsystems_standard"
+    LSYSTEMS = "lsystems_standard"
     WFC = "wfc"
-    # NUMBERLINK = "numberlink"
+    NUMBERLINK = "numberlink"
 
     # JAX_SEED_EXTENSION = "offline_seed_extension"
     # JAX_UNIFORM = "jax_uniform"
@@ -47,9 +47,9 @@ class BoardGenerator:
         BoardName.BFS_FIFO: BFSBoardFifo,
         BoardName.BFS_SHORTEST: BFSBoardShortest,
         BoardName.BFS_LONGEST: BFSBoardLongest,
-        # BoardName.LSYSTEMS: LSystemBoardGen,
+        BoardName.LSYSTEMS: LSystemBoardGen,
         BoardName.WFC: WFCBoard,
-        # BoardName.NUMBERLINK: NumberLinkBoard,
+        BoardName.NUMBERLINK: NumberLinkBoard,
 
         # BoardName.JAX_SEED_EXTENSION: RandomSeedBoard,
         # BoardName.JAX_UNIFORM: UniformRandomGenerator,
