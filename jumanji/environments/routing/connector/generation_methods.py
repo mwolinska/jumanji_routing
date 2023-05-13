@@ -149,13 +149,13 @@ class ParallelRandomWalk:
         starts_flat = jax.random.choice(
             key=key,
             a=jnp.arange(self.rows * self.cols),
-            shape=(1, self.num_agents),
+            shape=(self.num_agents),
             # Start positions for all agents
             replace=False,
         )
 
         # Create 2D points from the flat arrays.
-        starts = jnp.divmod(starts_flat[0], self.cols)
+        starts = jnp.divmod(starts_flat, self.cols)
         # Fill target with default value as targets will be assigned aftert random walk
         targets = jnp.full((2, self.num_agents), -1)
 
@@ -176,18 +176,18 @@ class ParallelRandomWalk:
 
     def _place_agent_heads_on_grid(self, grid: chex.Array, agent: Agent) -> chex.Array:
         """Updates grid with agent starting positions."""
-        return grid.at[agent.start[0], agent.start[1]].set(get_position(agent.id))
+        return grid.at[tuple(agent.start)].set(get_position(agent.id))
 
     def _continue_stepping(
         self, stepping_tuple: Tuple[chex.PRNGKey, chex.Array, Agent]
     ) -> chex.Array:
         """Determines if agents can continue taking steps."""
         key, grid, agents = stepping_tuple
-        dones = jax.vmap(self._is_any_step_possible, in_axes=(None, 0))(grid, agents)
+        dones = jax.vmap(self._no_available_cells, in_axes=(None, 0))(grid, agents)
         return ~dones.all()
 
-    def _is_any_step_possible(self, grid: chex.Array, agent: Agent) -> chex.Array:
-        """Checks if any moves are available for the agent."""
+    def _no_available_cells(self, grid: chex.Array, agent: Agent) -> chex.Array:
+        """Checks if there are no moves are available for the agent."""
         cell = self._convert_tuple_to_flat_position(agent.position)
         return (self._available_cells(grid, cell) == -1).all()
 
@@ -277,7 +277,7 @@ class ParallelRandomWalk:
         row_col_mask = is_same_row | is_same_col
         # Combine the two masks
         mask = mask & row_col_mask
-        return jnp.where(mask == 0, -1, cells_to_check)
+        return jnp.where(mask, cells_to_check, -1)
 
     def _available_cells(self, grid: chex.Array, cell: chex.Array) -> chex.Array:
         """Returns list of cells that can be stepped into from the input cell's position.
@@ -297,14 +297,11 @@ class ParallelRandomWalk:
         value = grid[jnp.divmod(cell, self.cols)]
         wire_id = (value - 1) // 3
 
-        _, available_cells_mask = jax.lax.scan(self._is_cell_free, grid, adjacent_cells)
+        available_cells_mask = jax.vmap(self._is_cell_free, in_axes=(None, 0))(grid, adjacent_cells)
         # Also want to check if the cell is touching itself more than once
-        _, touching_cells_mask = jax.lax.scan(
-            self._is_cell_doubling_back, (grid, wire_id), adjacent_cells
-        )
+        touching_cells_mask = jax.vmap(self._is_cell_doubling_back, in_axes=(None, None, 0))(grid, wire_id, adjacent_cells)
         available_cells_mask = available_cells_mask & touching_cells_mask
-        available_cells = jnp.where(available_cells_mask == 0, -1, adjacent_cells)
-
+        available_cells = jnp.where(available_cells_mask, adjacent_cells, -1)
         return available_cells
 
     def _is_cell_free(
@@ -322,16 +319,14 @@ class ParallelRandomWalk:
             A tuple of the new grid and a boolean indicating whether the cell is free or not.
         """
         coordinate = jnp.divmod(cell, self.cols)
-        return grid, jax.lax.select(
-            cell == -1, False, grid[coordinate[0], coordinate[1]] == 0
-        )
+        return (cell != -1) & (grid[coordinate] == 0)
 
     def _is_cell_doubling_back(
         self,
         grid_wire_id: Tuple[chex.Array, int],
         cell: int,
     ) -> Tuple[Tuple[chex.Array, int], bool]:
-        """Checks if moving into and adjacent position would result in a wire doubling back on itself.
+        """Checks if moving into an adjacent position would result in a wire doubling back on itself.
 
         Check if the cell is touching any of the wire's own cells more than once.
         This means looking for surrounding cells of value 3 * wire_id + POSITION or
@@ -343,24 +338,17 @@ class ParallelRandomWalk:
 
         def is_cell_doubling_back_inner(
             grid: chex.Array, cell: chex.Array
-        ) -> Tuple[chex.Array, chex.Array]:
+        ) -> chex.Array:
             coordinate = jnp.divmod(cell, self.cols)
-            cell_value = grid[coordinate[0], coordinate[1]]
-            touching_self = jnp.logical_or(
-                jnp.logical_or(
-                    cell_value == 3 * wire_id + POSITION,
-                    cell_value == 3 * wire_id + PATH,
-                ),
-                cell_value == 3 * wire_id + TARGET,
-            )
-            return grid, jnp.where(cell == -1, False, touching_self)
-
+            cell_value = grid[tuple(coordinate)]
+            touching_self = (cell_value == 3 * wire_id + POSITION) | \
+                            (cell_value == 3 * wire_id + PATH) | \
+                            (cell_value == 3 * wire_id + TARGET)
+            return (cell != -1) & touching_self
         # Count the number of adjacent cells with the same wire id
-        _, doubling_back_mask = jax.lax.scan(
-            is_cell_doubling_back_inner, grid, adjacent_cells
-        )
+        doubling_back_mask = jax.vmap(is_cell_doubling_back_inner, in_axes=(None, 0))(grid, adjacent_cells)
         # If the cell is touching itself more than once, return False
-        return (grid, wire_id), jnp.where(jnp.sum(doubling_back_mask) > 1, False, True)
+        return jnp.sum(doubling_back_mask) <= 1
 
     def _step_agent(
         self,
