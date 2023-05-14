@@ -110,12 +110,13 @@ class UniformRandomGenerator(Generator):
 
 
 class ParallelRandomWalkGenerator(Generator):
-    """Randomly generates `Connector` grids that may or may not be solvable. This generator places
-    start and target positions uniformly at random on the grid.
+    """Randomly generates `Connector` grids that are guaranteed be solvable. This generator places
+    start positions randomly on the grid and performs a random walk from each.  Targets are placed
+    at their terminuses.
     """
 
     def __init__(self, grid_size: int, num_agents: int) -> None:
-        """Instantiates a `UniformRandomGenerator`.
+        """Instantiates a `ParallelRandomWalkGenerator.
 
         Args:
             grid_size: size of the square grid to generate.
