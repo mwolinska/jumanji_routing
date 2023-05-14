@@ -276,13 +276,13 @@ class TestParallelRandomWalk:
             ((valid_starting_grid, agents_starting), jnp.array([False, False, False])),
         ],
     )
-    def test_is_any_step_possible(
+    def test_no_available_cells(
         parallel_random_walk: ParallelRandomWalk,
         function_input: Tuple[chex.Array, Agent],
         expected_value: chex.Array,
     ) -> None:
         grid, agents = function_input
-        dones = jax.vmap(parallel_random_walk._is_any_step_possible, in_axes=(None, 0))(
+        dones = jax.vmap(parallel_random_walk._no_available_cells, in_axes=(None, 0))(
             grid, agents
         )
         assert (dones == expected_value).all()
@@ -415,7 +415,7 @@ class TestParallelRandomWalk:
         expected_value: bool,
     ) -> None:
         grid_1, cell = function_input
-        grid, is_cell_free = parallel_random_walk._is_cell_free(grid_1, cell)
+        is_cell_free = parallel_random_walk._is_cell_free(grid_1, cell)
         assert is_cell_free == expected_value
 
     @staticmethod
