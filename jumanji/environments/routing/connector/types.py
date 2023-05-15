@@ -22,9 +22,6 @@ if TYPE_CHECKING:  # https://github.com/python/mypy/issues/6239
 else:
     from chex import dataclass
 
-AgentT = TypeVar("AgentT", bound="Agent")
-
-
 @dataclass
 class Agent:
     """
@@ -44,7 +41,7 @@ class Agent:
         """returns: True if the agent has reached its target."""
         return jnp.all(self.position == self.target, axis=-1)
 
-    def __eq__(self: AgentT, agent_2: Any) -> chex.Array:
+    def __eq__(self: "Agent", agent_2: Any) -> chex.Array:
         if not isinstance(agent_2, Agent):
             return NotImplemented
         same_ids = (agent_2.id == self.id).all()
