@@ -70,7 +70,7 @@ class ExtensionIterationGenerator(Generator):
     at their terminuses.
     """
 
-    def __init__(self, grid_size: int, num_agents: int, num_iterations: int = 2, two_sided: bool = False) -> None:
+    def __init__(self, grid_size: int, num_agents: int, extension_iterations: int = 2) -> None:
         """Instantiates a `ParallelRandomWalkGenerator.
 
         Args:
@@ -80,6 +80,7 @@ class ExtensionIterationGenerator(Generator):
         super().__init__(grid_size, num_agents)
         self.cols = grid_size
         self.rows = grid_size
+        self.num_iterations = extension_iterations
 
     def __call__(self, key: chex.PRNGKey) -> State:
         """Generates a `Connector` state that contains the grid and the agents' layout.
