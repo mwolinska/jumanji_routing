@@ -26,6 +26,9 @@ from ic_routing_board_generation.ic_rl_training.offline_generation.dataset_gener
     BoardDatasetGenerator
 from ic_routing_board_generation.ic_rl_training.offline_generation.dataset_generator_jax import \
     BoardDatasetGeneratorJAX
+
+from ic_routing_board_generation.ic_rl_training.online_generators.extension_iteration_generator import \
+    ExtensionIterationGenerator
 from ic_routing_board_generation.ic_rl_training.online_generators.parallel_random_walk_generator import \
     ParallelRandomWalkGenerator
 from ic_routing_board_generation.ic_rl_training.online_generators.random_seed_generator import \
@@ -134,6 +137,12 @@ def _make_raw_env(cfg: DictConfig, ic_generator: Optional[BoardName] = None) -> 
         )
     elif cfg.env.ic_board.generation_type == "online_parallel_rw":
         generator = ParallelRandomWalkGenerator(
+            grid_size=cfg.env.ic_board.grid_size,
+            num_agents=cfg.env.ic_board.num_agents,
+        )
+
+    elif cfg.env.ic_board.generation_type == "online_extension_iteration":
+        generator = ExtensionIterationGenerator(
             grid_size=cfg.env.ic_board.grid_size,
             num_agents=cfg.env.ic_board.num_agents,
         )

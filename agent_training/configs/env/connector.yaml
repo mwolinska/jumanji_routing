@@ -2,7 +2,7 @@ name: connector
 registered_version: Connector-v0
 
 ic_board:
-    generation_type: online_parallel_rw # offline_seed_extension, online_seq_rw, online_parallel_rw, online_random_seed, online_lsystems, offline, offline_parallel_rw
+    generation_type: online_extension_iteration # offline_seed_extension, online_seq_rw, online_parallel_rw, online_random_seed, online_lsystems, offline, offline_parallel_rw
     board_name: none # replace with string from interface if using offline or none if using online
     grid_size: 10
     num_agents: 5
